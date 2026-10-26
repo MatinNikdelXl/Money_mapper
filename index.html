@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRX MoneyMapper — مدیریت تراکنش بانکی</title>
+  <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>TRX <span>MoneyMapper</span></h1>
+    <div id="authBox">
+      <span id="syncStatus" class="status"></span>
+      <button id="disconnectBtn" class="btn btn-sm hidden">قطع اتصال</button>
+    </div>
+  </header>
+
+  <div id="guestBanner" class="guest-banner" hidden>
+    در حالت میهمان، تراکنش‌ها فقط در همین مرورگر ذخیره می‌شن. برای سینک با Google Sheets، پنل تنظیمات رو پر کن.
+  </div>
+
+  <!-- داشبورد -->
+  <section class="stats" aria-label="خلاصه حساب">
+    <div class="stat balance"><div class="label">موجودی کل</div><div class="value" id="stBalance">۰</div></div>
+    <div class="stat income"><div class="label">مجموع واریز</div><div class="value" id="stIncome">۰</div></div>
+    <div class="stat expense"><div class="label">مجموع برداشت</div><div class="value" id="stExpense">۰</div></div>
+    <div class="stat"><div class="label">تعداد تراکنش</div><div class="value" id="stCount">۰</div></div>
+    <div class="stat today last-stat"><div class="label">تراکنش‌های امروز</div><div class="value" id="stToday">۰</div></div>
+  </section>
+
+  <div id="syncBar">
+    <span class="sync-side"><span class="dot" id="syncDot"></span><span id="syncText">حالت میهمان (localStorage)</span></span>
+    <span id="lastSync">—</span>
+  </div>
+
+  <div class="grid">
+    <div class="col-form">
+      <!-- فرم تراکنش جدید -->
+      <section class="panel">
+        <h2>➕ تراکنش جدید</h2>
+
+        <div class="field">
+          <label>نوع</label>
+          <div class="row2">
+            <button type="button" id="typeOut" class="btn btn-primary">برداشت 🔴</button>
+            <button type="button" id="typeIn" class="btn">واریز 🟢</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="fAmount">مبلغ (تومان)</label>
+          <input id="fAmount" type="text" inputmode="numeric" placeholder="مثلاً ۱٬۲۵۰٬۰۰۰">
+        </div>
+
+        <div class="field">
+          <label for="fTitle">بابت / عنوان خرید</label>
+          <div class="input-add">
+            <input id="fTitle" type="text" list="catList" placeholder="تایپ کن یا از لیست انتخاب کن">
+            <button type="button" id="addCatBtn" class="btn btn-sm" title="اضافه کردن دسته جدید">＋</button>
+          </div>
+          <datalist id="catList"></datalist>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label for="fBank">بانک</label>
+            <select id="fBank"><option value="">— انتخاب بانک —</option></select>
+          </div>
+          <div class="field">
+            <label for="fDate">تاریخ (میلادی)</label>
+            <input id="fDate" type="date">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="fNote">کامنت / توضیحات</label>
+          <textarea id="fNote" placeholder="جزئیات بیشتر: از کجا خریدم، شماره پیگیری و..."></textarea>
+        </div>
+
+        <button id="addBtn" class="btn btn-green w-full">ثبت تراکنش</button>
+      </section>
+
+      <!-- تنظیمات -->
+      <section class="panel gap-top">
+        <h2>⚙️ تنظیمات</h2>
+
+        <div class="field">
+          <label for="cfgScript">🟢 آدرس Apps Script Web App</label>
+          <input id="cfgScript" type="text" placeholder="https://script.google.com/macros/s/....../exec">
+        </div>
+        <div class="field">
+          <label for="cfgGasToken">رمز اسکریپت (اختیاری)</label>
+          <input id="cfgGasToken" type="password">
+        </div>
+        <div class="field">
+          <label for="cfgSheet">Google Spreadsheet ID</label>
+          <input id="cfgSheet" type="text" placeholder="شناسه شیت از آدرس URL">
+        </div>
+
+        <button id="saveCfg" class="btn btn-primary w-full">ذخیره و اتصال</button>
+
+        <div class="hint">
+          <b>راه‌اندازی (~۲ دقیقه):</b><br>
+          ۱) یه شیت گوگل بساز → منوی <b>Extensions → Apps Script</b><br>
+          ۲) کد فایل <b>Code.gs</b> رو جایگزین کد پیش‌فرض کن<br>
+          ۳) <b>Deploy → New deployment → Web app</b> — Execute as: Me — Access: Anyone<br>
+          ۴) آدرس <b>/exec</b> رو بذار و «ذخیره و اتصال» بزن<br><br>
+          شیت‌های «تراکنش‌ها» و «گزارش» خودکار ساخته می‌شن. بدون OAuth، بدون فیلترینگ!
+        </div>
+      </section>
+    </div>
+
+    <!-- لیست تراکنش‌ها -->
+    <section class="panel">
+      <h2>📜 تراکنش‌ها</h2>
+      <div class="filters">
+        <input id="q" type="text" placeholder="جستجو...">
+        <select id="filterBank"><option value="">همه بانک‌ها</option></select>
+        <select id="filterType">
+          <option value="">همه انواع</option>
+          <option value="in">واریز</option>
+          <option value="out">برداشت</option>
+        </select>
+        <select id="filterPeriod">
+          <option value="">همه زمان‌ها</option>
+          <option value="today">امروز</option>
+          <option value="month">این ماه</option>
+          <option value="range">بازه دلخواه</option>
+        </select>
+        <input id="filterFrom" type="date" class="hidden" title="از تاریخ">
+        <input id="filterTo" type="date" class="hidden" title="تا تاریخ">
+      </div>
+      <div class="list" id="txList"></div>
+    </section>
+  </div>
+</div>
+
+<!-- ویرایش تراکنش -->
+<dialog id="editDlg">
+  <h2 class="dlg-title">✏️ ویرایش تراکنش</h2>
+  <div class="field">
+    <label for="eAmount">مبلغ (تومان)</label>
+    <input id="eAmount" type="text" inputmode="numeric">
+  </div>
+  <div class="field">
+    <label for="eTitle">بابت</label>
+    <div class="input-add">
+      <input id="eTitle" type="text" list="catList">
+      <button type="button" id="addCatBtn2" class="btn btn-sm" title="اضافه کردن دسته جدید">＋</button>
+    </div>
+  </div>
+  <div class="row2">
+    <div class="field">
+      <label for="eType">نوع</label>
+      <select id="eType"><option value="out">برداشت</option><option value="in">واریز</option></select>
+    </div>
+    <div class="field">
+      <label for="eBank">بانک</label>
+      <select id="eBank"></select>
+    </div>
+  </div>
+  <div class="row2">
+    <div class="field">
+      <label for="eDate">تاریخ</label>
+      <input id="eDate" type="date">
+    </div>
+    <div class="field">
+      <label for="eSource">نوع کارت/حساب</label>
+      <input id="eSource" type="text" placeholder="اختیاری">
+    </div>
+  </div>
+  <div class="field">
+    <label for="eNote">کامنت / توضیحات</label>
+    <textarea id="eNote"></textarea>
+  </div>
+  <div class="dlg-actions">
+    <button id="editSave" class="btn btn-primary grow">ذخیره</button>
+    <button id="editDelete" class="btn btn-danger">حذف</button>
+    <button id="editCancel" class="btn">بستن</button>
+  </div>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
